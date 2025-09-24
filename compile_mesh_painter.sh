@@ -1,0 +1,2 @@
+# 使用 Visual Studio 的 cl.exe 编译器
+cl /O2 /LD /I . `python -c "import pybind11;print(pybind11.get_include())"` /I "C:\Path\To\Python\include" mesh_inpaint_processor.cpp /link /OUT:mesh_inpaint_processor.pyd
