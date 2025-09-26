@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>Hunyuan3D 生成器</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{--bg:#0b0f14;--card:#121820;--muted:#97a3b6;--text:#e6edf3;--acc:#4da3ff;--acc2:#27d796;--danger:#ff5c7a}
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0f14,#0e141b);color:var(--text);font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    .wrap{max-width:860px;margin:32px auto;padding:0 16px}
+    .card{background:var(--card);border:1px solid #1d2530;border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    h1{margin:0 0 8px;font-size:22px}
+    p.sub{margin:0 0 20px;color:var(--muted)}
+    .row{display:flex;gap:16px;flex-wrap:wrap}
+    .col{flex:1 1 320px}
+    .upload{border:1px dashed #2b3544;border-radius:14px;padding:16px;text-align:center}
+    .upload input{display:none}
+    .upload label{display:inline-block;padding:10px 14px;border-radius:10px;background:#182230;border:1px solid #253044;cursor:pointer}
+    .thumb{margin-top:12px;display:flex;gap:12px;align-items:center}
+    .thumb img{width:88px;height:88px;object-fit:cover;border-radius:12px;border:1px solid #273141}
+    .num{display:flex;gap:8px;align-items:center;margin-top:10px}
+    .num input{width:110px;background:#101620;border:1px solid #273141;color:var(--text);padding:8px 10px;border-radius:10px}
+    button{padding:10px 16px;border:1px solid #2f3a4f;background:#1a2331;color:var(--text);border-radius:12px;cursor:pointer}
+    button.primary{background:linear-gradient(90deg,var(--acc),#6ad0ff);border-color:#3288e9;color:#0b1220;font-weight:600}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .bar{height:14px;background:#0f1722;border:1px solid #293245;border-radius:999px;overflow:hidden;margin-top:10px}
+    .bar > div{height:100%;width:0%;background:linear-gradient(90deg,var(--acc2),#58f3c8);transition:width .2s ease}
+    .meta{display:flex;justify-content:space-between;gap:12px;margin-top:8px;color:var(--muted);font-size:12px}
+    .log{margin-top:10px;padding:10px 12px;background:#0e1520;border:1px solid #263144;border-radius:12px;min-height:48px;white-space:pre-wrap}
+    .footer{margin-top:14px;display:flex;gap:10px;align-items:center;justify-content:flex-end}
+    .tag{font-size:12px;padding:4px 8px;border:1px solid #2a3346;border-radius:999px;color:var(--muted)}
+    .err{color:var(--danger)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Hunyuan3D 生成器</h1>
+      <p class="sub">上传一张图片 → 后端生成 3D 模型 → 自动下载 <code>demo.glb</code>。支持实时进度（SSE），无 SSE 时自动轮询。</p>
+
+      <div class="row">
+        <div class="col">
+          <div class="upload">
+            <input id="file" type="file" accept="image/*" />
+            <label for="file">选择图片</label>
+            <div class="thumb" id="thumb" style="display:none">
+              <img id="preview" alt="preview"/>
+              <div style="flex:1">
+                <div id="filename"></div>
+                <div class="num">
+                  <label for="steps">推理步数：</label>
+                  <input id="steps" type="number" min="1" max="200" value="50"/>
+                </div>
+                <div style="margin-top:8px">
+                  <button id="start" class="primary" disabled>开始生成</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div>进度</div>
+          <div class="bar"><div id="bar"></div></div>
+          <div class="meta">
+            <div>阶段：<span id="phase">-</span></div>
+            <div>完成：<span id="pct">0%</span></div>
+          </div>
+          <div class="log" id="log">等待任务开始…</div>
+          <!-- <div class="footer">
+            <span class="tag">SSE: <span id="sse">未知</span></span>
+            <span class="tag">后端: <span id="api">http://127.0.0.1:5013</span></span>
+          </div> -->
+        </div>
+      </div>
+
+      <div id="error" class="err" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <script>
+    // === 配置你的后端地址 ===
+    const API_BASE = 'http://127.0.0.1:5013';
+
+    // === DOM refs ===
+    const $file = document.getElementById('file');
+    const $preview = document.getElementById('preview');
+    const $thumb = document.getElementById('thumb');
+    const $filename = document.getElementById('filename');
+    const $steps = document.getElementById('steps');
+    const $start = document.getElementById('start');
+    const $phase = document.getElementById('phase');
+    const $pct = document.getElementById('pct');
+    const $bar = document.getElementById('bar');
+    const $log = document.getElementById('log');
+    const $sse = document.getElementById('sse');
+    const $api = document.getElementById('api');
+    const $error = document.getElementById('error');
+    $api.textContent = API_BASE;
+
+    let currentJobId = null;
+    let pollTimer = null;
+    let es = null; // EventSource
+
+    function setProgress(p, ph, msg) {
+      const pct = Math.max(0, Math.min(100, Number(p) || 0));
+      $bar.style.width = pct + '%';
+      $pct.textContent = pct + '%';
+      if (ph) $phase.textContent = ph;
+      if (msg) $log.textContent = msg;
+    }
+
+    function resetUI() {
+      setProgress(0, '-', '等待任务开始…');
+      $error.textContent = '';
+    }
+
+    function toBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('读取图片失败'));
+        reader.onload = () => {
+          // reader.result = data:*/*;base64,XXXX
+          const str = String(reader.result);
+          const idx = str.indexOf('base64,');
+          resolve(idx >= 0 ? str.slice(idx + 7) : str);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function downloadBase64(b64, filename = 'demo.glb') {
+      const byteChars = atob(b64);
+      const byteNums = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteNums[i] = byteChars.charCodeAt(i);
+      }
+      const blob = new Blob([byteNums], { type: 'model/gltf-binary' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function startJob(imageB64, steps) {
+      const res = await fetch(`${API_BASE}/shape/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ image: imageB64, num_inference_steps: Number(steps) || 50 })
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(()=>'');
+        throw new Error(`提交失败：${res.status} ${t}`);
+      }
+      const j = await res.json();
+      if (j.code !== 1) throw new Error(j.error || '未知错误');
+      return j.job_id;
+    }
+
+    function startSSE(jobId) {
+      if (!('EventSource' in window)) {
+        $sse.textContent = '不支持';
+        return false;
+      }
+      try {
+        es = new EventSource(`${API_BASE}/events/${jobId}`);
+        $sse.textContent = '已开启';
+        es.onmessage = (ev) => {
+          try {
+            const d = JSON.parse(ev.data);
+            setProgress(d.progress, d.phase, d.message);
+            if (d.status === 'done' || d.status === 'error') {
+              es.close();
+            }
+          } catch {}
+        };
+        es.onerror = () => {
+          // 连接失败自动回退轮询
+          $sse.textContent = '连接失败→轮询';
+          es.close();
+          es = null;
+          startPolling(jobId);
+        };
+        return true;
+      } catch {
+        $sse.textContent = '异常→轮询';
+        return false;
+      }
+    }
+
+    function startPolling(jobId) {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        try {
+          const r = await fetch(`${API_BASE}/progress/${jobId}`);
+          const j = await r.json();
+          if (j.code !== 1) throw new Error(j.error || 'progress error');
+          setProgress(j.progress, j.phase, j.message);
+          if (j.status === 'done' || j.status === 'error') {
+            clearInterval(pollTimer);
+            pollTimer = null;
+          }
+        } catch (e) {
+          // 忽略偶发错误，持续轮询
+        }
+      }, 700);
+    }
+
+    async function fetchResult(jobId) {
+      // 拉取 base64 glb
+      const r = await fetch(`${API_BASE}/result/${jobId}`);
+      if (!r.ok) throw new Error(`获取结果失败：${r.status}`);
+      const j = await r.json();
+      if (j.code !== 1) throw new Error(j.error || '结果接口返回失败');
+      return j.glb;
+    }
+
+    // === 事件绑定 ===
+    $file.addEventListener('change', async (e) => {
+      resetUI();
+      const f = e.target.files?.[0];
+      if (!f) { $start.disabled = true; return; }
+
+      // 预览
+      $filename.textContent = `${f.name} (${(f.size/1024/1024).toFixed(2)} MB)`;
+      const url = URL.createObjectURL(f);
+      $preview.src = url;
+      $thumb.style.display = 'flex';
+      $start.disabled = false;
+    });
+
+    $start.addEventListener('click', async () => {
+      try {
+        $start.disabled = true;
+        $error.textContent = '正在提交任务…';
+        const f = $file.files?.[0];
+        if (!f) throw new Error('请先选择图片');
+
+        const imgB64 = await toBase64(f);
+        currentJobId = await startJob(imgB64, $steps.value);
+        $error.textContent = '任务已提交，开始接收进度…';
+
+        // 开始进度订阅
+        const ok = startSSE(currentJobId);
+        if (!ok) startPolling(currentJobId);
+
+        // 等待结束（简单方式：轮询状态直到 done）
+        const waitDone = async () => {
+          while (true) {
+            const r = await fetch(`${API_BASE}/progress/${currentJobId}`);
+            const j = await r.json();
+            if (j.status === 'done') return true;
+            if (j.status === 'error') throw new Error('后端执行失败，请查看日志');
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        };
+        await waitDone();
+
+        // 拉取并下载 glb
+        $error.textContent = '生成完成，正在下载…';
+        const b64 = await fetchResult(currentJobId);
+        downloadBase64(b64, 'demo.glb');
+        $error.textContent = '✅ 已下载 demo.glb';
+      } catch (err) {
+        console.error(err);
+        $error.textContent = '❌ ' + (err?.message || String(err));
+      } finally {
+        $start.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
