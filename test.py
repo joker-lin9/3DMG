@@ -1,6 +1,6 @@
 import sys
-sys.path.insert(0, './Hunyuan3D-2/hy3dshape')
-sys.path.insert(0, './Hunyuan3D-2/hy3dpaint')
+sys.path.insert(0, './hunyuan3d-2.1/hy3dshape')
+sys.path.insert(0, './hunyuan3d-2.1/hy3dpaint')
 from textureGenPipeline import Hunyuan3DPaintPipeline
 from textureGenPipeline import Hunyuan3DPaintPipeline, Hunyuan3DPaintConfig
 from hy3dshape.pipelines import Hunyuan3DDiTFlowMatchingPipeline

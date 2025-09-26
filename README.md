@@ -6,21 +6,26 @@ pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https
 
 git clone https://github.com/tencent-hunyuan/hunyuan3d-2.1
 
-cd Hunyuan3D-2.1
+<!-- cd Hunyuan3D-2.1 -->
 pip install -r requirements.txt
 pip install cupy-cuda12x==13.4.1
 pip install bpy==4.0.0 --extra-index-url https://download.blender.org/pypi/
 pip install deepspeed --prefer-binary
 
-cd ..
-cp -f ./setup.py ./hunyuan3d-2.1/hy3dpaint/custom_rasterizer/
-cp -f ./compile_direct.py ./hunyuan3d-2.1/hy3dpaint/DifferentiableRenderer/
+<!-- cd .. -->
+powershell
+Copy-Item .\custom_rasterizer_setup.py .\hunyuan3d-2.1\hy3dpaint\custom_rasterizer\setup.py -Force
+Copy-Item .\DifferentiableRenderer_setup.py .\hunyuan3d-2.1\hy3dpaint\DifferentiableRenderer\setup.py
 
-cd ./Hunyuan3D-2.1/hy3dpaint/custom_rasterizer
+cmd
+cp -f custom_rasterizer_setup.py hunyuan3d-2.1/hy3dpaint/custom_rasterizer/setup.py
+cp -f DifferentiableRenderer_setup.py hunyuan3d-2.1/hy3dpaint/DifferentiableRenderer/setup.py
+
+cd hunyuan3d-2.1\hy3dpaint\custom_rasterizer
 pip install -e .
 
-cd ../DifferentiableRenderer
-python compile_direct.py
+cd ..\DifferentiableRenderer
+pip install -e .
 
 cd ../.. 
 mkdir hy3dpaint\ckpt
