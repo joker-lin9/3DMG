@@ -11,6 +11,7 @@ pip install -r requirements.txt
 pip install cupy-cuda12x==13.4.1
 pip install bpy==4.0.0 --extra-index-url https://download.blender.org/pypi/
 pip install deepspeed --prefer-binary
+pip install waitress flask_cors
 
 <!-- cd .. -->
 powershell
@@ -30,6 +31,15 @@ pip install -e .
 cd ../.. 
 mkdir hy3dpaint\ckpt
 python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth', 'hy3dpaint\ckpt\RealESRGAN_x4plus.pth')"
+
+cd ..
+python download.py
+
+
+<!-- - Go to [Hunyuan3D-dit-v2-1](https://huggingface.co/tencent/Hunyuan3D-2.1/tree/main/hunyuan3d-dit-v2-1) to download the model and place it under `checkpoint\Shape`.
+
+- Go to [Hunyuan3D-paintpbr-v2-1](https://huggingface.co/tencent/Hunyuan3D-2.1/tree/main/hunyuan3d-paintpbr-v2-1) to download the model and place it under `checkpoint\Paint`. -->
+
 
 <!-- wget https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth -P hy3dpaint/ckpt -->
 
