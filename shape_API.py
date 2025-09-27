@@ -9,7 +9,9 @@ from PIL import Image
 sys.path.insert(0, './hunyuan3d-2.1/hy3dshape')
 sys.path.insert(0, './hunyuan3d-2.1/hy3dpaint')
 
-from hy3dshape.rembg import BackgroundRemover
+# from hy3dshape.rembg import BackgroundRemover
+from background_remover import BackgroundRemover
+
 from hy3dshape.pipelines import Hunyuan3DDiTFlowMatchingPipeline
 
 # ======================
@@ -33,7 +35,7 @@ config_path= os.path.join(model_dir, 'config.yaml')
 pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_single_file(
     ckpt_path, config_path, device=device, dtype=dtype, use_safetensors=use_safetensors
 )
-rembg = BackgroundRemover()
+rembg = BackgroundRemover(use_gpu=True)
 
 # ======================
 # 任务状态
@@ -68,48 +70,41 @@ RE_PHASE = re.compile(r'^(.*?):\s')            # "Diffusion Sampling:: ..." / "V
 RE_COUNT = re.compile(r'\s(\d+)/(\d+)\s')      # 7134/7134
 
 class CustomTqdmCapture(io.TextIOBase):
-    """捕获 tqdm 写到 stderr 的每次 write，并更新 JOB 进度。"""
+    """Capture tqdm writes to stderr, focusing on updating job progress with just percentage."""
     def __init__(self, job_id):
         super().__init__()
         self.job_id = job_id
         self._buf = ""
 
     def write(self, s):
-        # tqdm 会频繁刷新同一行，这里简单地逐段解析
         self._buf += s
-        # 每次遇到换行或回车就尝试解析
         if '\r' in s or '\n' in s:
             line = self._buf.strip()
             self._buf = ""
             if not line:
                 return len(s)
 
-            # 推断 phase
+            # Match phase (e.g., "Diffusion Sampling" or "Volume Decoding")
             m_phase = RE_PHASE.search(line)
             phase = m_phase.group(1).strip() if m_phase else JOBS[self.job_id].get("phase", "running")
-            # 百分比
-            pct = None
+
+            # Match percentage (e.g., 45%)
             m_pct = RE_PCT.search(line)
             if m_pct:
-                pct = int(m_pct.group(1))
+                pct = int(m_pct.group(1))  # Extract the percentage value
+                if phase == "Diffusion Sampling:":
+                    update_job(self.job_id, progress=pct, phase=phase)  # Update Diffusion progress
+                elif phase == "Volume Decoding":
+                    update_job(self.job_id, progress=pct, phase=phase)  # Update Decoding progress
             else:
-                # 尝试用  current/total 估算
-                m_ct = RE_COUNT.search(line)
-                if m_ct:
-                    cur, total = int(m_ct.group(1)), int(m_ct.group(2))
-                    if total > 0:
-                        pct = int(cur * 100 / total)
-
-            if pct is not None:
-                update_job(self.job_id, phase=phase, progress=max(0, min(100, pct)), message=line)
-            else:
-                # 没解析到百分比时，至少更新一下 message/phase
+                # In case no percentage is found, just update the message field
                 update_job(self.job_id, phase=phase, message=line)
 
         return len(s)
 
     def flush(self):
         pass
+
 
 # ======================
 # 运行任务（后台线程）
