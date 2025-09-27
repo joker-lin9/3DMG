@@ -33,6 +33,7 @@ mkdir hy3dpaint\ckpt
 python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth', 'hy3dpaint\ckpt\RealESRGAN_x4plus.pth')"
 
 cd ..
+mkdir checkpoint
 python download.py
 
 

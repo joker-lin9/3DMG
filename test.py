@@ -71,6 +71,7 @@ sys.path.insert(0, './hunyuan3d-2.1/hy3dshape')
 sys.path.insert(0, './hunyuan3d-2.1/hy3dpaint')
 
 from background_remover import BackgroundRemover
+from PIL import Image
 # ======================
 # 模型初始化（全局一次）
 # ======================
@@ -82,4 +83,14 @@ variant = 'fp16'
 # pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_single_file(
 #     ckpt_path, config_path, device=device, dtype=dtype, use_safetensors=use_safetensors
 # )
+# image_path = './hunyuan3d-2.1/assets/demo.png'
+# num_inference_steps = 50
+
+# ###############
+image_path = 'demo2.png'
+model_path = 'checkpoint/Shape'
+subfolder = 'hunyuan3d-dit-v2-1'
+image = Image.open(image_path)
 rembg = BackgroundRemover(use_gpu=True)
+image = rembg(image).convert("RGBA")
+image.save('test_rembg.png')
