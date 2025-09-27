@@ -1,5 +1,5 @@
 # app_progress.py
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, Response, jsonify, send_file
 from flask_cors import CORS
 import json, base64, io, os, sys, threading, time, re
 from contextlib import redirect_stderr
@@ -202,15 +202,8 @@ def result(job_id):
         if info["status"] != "done":
             return jsonify({"code": 0, "error": f"job not done: {info['status']}"}), 202
         path = info["glb_path"]
+    return send_file(path, mimetype="model/gltf-binary", as_attachment=True, download_name="demo.glb")
 
-    # 方式A：返回 base64（与之前一致）
-    with open(path, "rb") as f:
-        glb_b64 = base64.b64encode(f.read()).decode("utf-8")
-    return jsonify({"code": 1, "glb": glb_b64})
-
-    # 方式B：如果你想直接返回文件，请改为：
-    # from flask import send_file
-    # return send_file(path, mimetype="model/gltf-binary", as_attachment=True, download_name="demo.glb")
 
 if __name__ == "__main__":
     # 开发模式
