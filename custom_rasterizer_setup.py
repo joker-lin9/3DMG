@@ -12,13 +12,24 @@ class CustomBuildExt(build_ext):
             'cxx': ['/std:c++17']  # Windows 上的 C++17 标志
         }
 
+        # self.extensions = [
+        #     CUDAExtension(
+        #         "custom_rasterizer_kernel_for_windows",
+        #         [
+        #             "lib/custom_rasterizer_kernel_for_windows/rasterizer.cpp",
+        #             "lib/custom_rasterizer_kernel_for_windows/grid_neighbor.cpp",
+        #             "lib/custom_rasterizer_kernel_for_windows/rasterizer_gpu.cu",
+        #         ],
+        #         extra_compile_args=extra_compile_args
+        #     )
+        # ]
         self.extensions = [
             CUDAExtension(
-                "custom_rasterizer_kernel_for_windows",
+                "custom_rasterizer_kernel",
                 [
-                    "lib/custom_rasterizer_kernel_for_windows/rasterizer.cpp",
-                    "lib/custom_rasterizer_kernel_for_windows/grid_neighbor.cpp",
-                    "lib/custom_rasterizer_kernel_for_windows/rasterizer_gpu.cu",
+                    "lib/custom_rasterizer_kernel/rasterizer.cpp",
+                    "lib/custom_rasterizer_kernel/grid_neighbor.cpp",
+                    "lib/custom_rasterizer_kernel/rasterizer_gpu.cu",
                 ],
                 extra_compile_args=extra_compile_args
             )
