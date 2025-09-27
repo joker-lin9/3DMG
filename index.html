@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <title>Hunyuan3D 生成器</title>
+  <title>3D 素材生成器</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -261,6 +261,13 @@
         <div>生成的 3D 模型</div>
         <model-viewer id="model-viewer" alt="生成的 3D 模型" src="" auto-rotate camera-controls style="width: 100%; height: 400px;"></model-viewer>
       </div>
+
+      <div class="col" id="download-section" style="display:none;">
+        <div>文件名：</div>
+        <input id="filename" type="text" value="demo.glb" style="width: 100%; margin-bottom: 10px;" />
+        <button id="download-btn" class="primary">下载 3D 模型</button>
+      </div>
+    
           
       <div id="error" class="err" style="margin-top:8px"></div>
     </div>
@@ -284,6 +291,10 @@
     // const $log = document.getElementById('log');
     const $error = document.getElementById('error');
 
+    const $downloadSection = document.getElementById('download-section');
+    const $filename = document.getElementById('filename');
+    const $downloadBtn = document.getElementById('download-btn');
+    
     let currentJobId = null;
     let pollTimer = null;
     let es = null; // EventSource
@@ -411,15 +422,16 @@
     }
 
     function downloadBlob(blob, filename) {
-      const url = URL.createObjectURL(blob); // 创建文件下载链接
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename; // 设置下载文件名
+      a.download = filename; // 使用用户输入的文件名
       document.body.appendChild(a);
-      a.click(); // 模拟点击下载链接
-      document.body.removeChild(a); // 下载后移除链接元素
-      URL.revokeObjectURL(url); // 释放链接资源
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
+
 
     // === 事件绑定 ===
     $file.addEventListener('change', async (e) => {
@@ -482,11 +494,14 @@
         await waitDone();
 
         // 拉取并下载 glb
-        $error.textContent = '生成完成，正在下载…';
+        $error.textContent = '生成完成';
+        $downloadSection.style.display = 'block';
+        $downloadBtn.addEventListener('click', () => downloadBlob(blob, filename));
         const blob = await fetchResult(currentJobId);
+        const filename = $filename.value || 'demo.glb'; // 使用输入框的文件名    
         
-        downloadBlob(blob, 'demo.glb');
-        $error.textContent = '已下载 demo.glb';
+        // downloadBlob(blob, 'demo.glb');
+        // $error.textContent = '已下载 demo.glb';
 
         // // 创建 Blob 对象
         // const dataUri = `data:application/octet-stream;base64,${b64}`;
