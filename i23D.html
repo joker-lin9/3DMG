@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>3D 素材生成器</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #121820;
+      --muted: #97a3b6;
+      --text: #e6edf3;
+      --acc: #4da3ff;
+      --acc2: #27d796;
+      --danger: #ff5c7a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #0b0f14, #0e141b);
+      color: var(--text);
+      font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    }
+
+    .wrap {
+      max-width: 860px;
+      margin: 32px auto;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid #1d2530;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+    }
+
+    p.sub {
+      margin: 0 0 20px;
+      color: var(--muted);
+    }
+
+    .row {
+      display: flex;
+      gap: 16px;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .col {
+      flex: 1 1 320px;
+      width: 100%;
+    }
+
+    .upload {
+      border: 1px dashed #2b3544;
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+      width: 100%;
+      position: relative;
+    }
+
+    .upload input {
+      display: none;
+    }
+
+    .upload label {
+      display: inline-block;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #182230;
+      border: 1px solid #253044;
+      cursor: pointer;
+    }
+
+    /* 图像容器 */
+    .thumb {
+      margin-top: 12px;
+      width: 100%;
+      max-width: 350px;
+      height: 250px;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid #273141;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      background-color: #1e2834; /* Optional: make the background darker */
+    }
+
+    .thumb img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .num {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+      width: 100%;
+    }
+
+    .num span {
+      font-size: 16px;
+      color: var(--muted);
+    }
+
+    .num input {
+      width: 80px;
+      background: #101620;
+      border: 1px solid #273141;
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: 1px solid #2f3a4f;
+      background: #1a2331;
+      color: var(--text);
+      border-radius: 12px;
+      width: 100%;
+    }
+
+    button.primary {
+      background: linear-gradient(90deg, var(--acc), #6ad0ff);
+      border-color: #3288e9;
+      color: #0b1220;
+      font-weight: 600;
+    }
+
+    button:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    /* 进度条容器 */
+    .bar {
+      height: 14px;
+      background: #0f1722;
+      border: 1px solid #293245;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 10px;
+      width: 100%;
+    }
+
+    .bar > div {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--acc2), #58f3c8);
+      transition: width .2s ease;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+       margin-bottom: 20px;
+    }
+
+    .log {
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: #0e1520;
+      border: 1px solid #263144;
+      border-radius: 12px;
+      min-height: 48px;
+      white-space: pre-wrap;
+    }
+
+    .footer {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .tag {
+      font-size: 12px;
+      padding: 4px 8px;
+      border: 1px solid #2a3346;
+      border-radius: 999px;
+      color: var(--muted);
+    }
+
+    .err {
+      color: var(--danger);
+    }
+    
+
+  </style>
+</head>
+<body>
+  <nav style="max-width:860px;margin:16px auto 0;padding:0 16px;display:flex;gap:8px;align-items:center;justify-content:flex-end;font:14px ui-sans-serif">
+    <a href="./i23D.html" style="color:#97a3b6;text-decoration:none;border:1px solid #2b3544;padding:6px 10px;border-radius:10px">白模生成</a>
+    <a href="./t2i.html" style="color:#0b1220;background:#4da3ff;text-decoration:none;border:1px solid #3288e9;padding:6px 10px;border-radius:10px;font-weight:600">文生图</a>
+  </nav>
+  <div class="wrap">
+    <div class="card">
+      <h1>白模生成器</h1>
+      <p class="sub">上传一张图片 → 生成 3D 白模</p>
+
+      <div class="row">
+        <!-- 图像上传部分 -->
+        <div class="col">
+          <div class="upload">
+            <input id="file" type="file" accept="image/*" />
+            <label for="file">选择图片</label>
+            <div class="thumb" id="thumb" style="display:none">
+              <img id="preview" alt="preview"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- 参数选择部分 -->
+        <div class="col">
+          <div class="num">
+            <span>推理步骤：</span>
+            <input id="steps" type="number" min="1" max="200" value="10"/>
+          </div>
+          <div style="margin-top: 8px">
+            <button id="start" class="primary" disabled>开始生成</button>
+          </div>
+        </div>
+
+        <!-- 进度条部分 -->
+        <div class="col">
+          <div>Diffusion Sampling 进度</div>
+          <div class="bar"><div id="diffusion-bar"></div></div>
+          <div class="meta">
+            <div>完成：<span id="diffusion-pct">0%</span></div>
+          </div>
+
+          <div>Volume Decoding 进度</div>
+          <div class="bar"><div id="decoding-bar"></div></div>
+          <div class="meta">
+            <div>完成：<span id="decoding-pct">0%</span></div>
+          </div>
+
+          <!-- <div class="log" id="log"></div> -->
+        </div>
+      </div>
+ <!-- 3D 模型展示区域 -->
+      <div class="col">
+        <div>生成的 3D 模型</div>
+        <model-viewer id="model-viewer" alt="生成的 3D 模型" src="" auto-rotate camera-controls style="width: 100%; height: 400px;"></model-viewer>
+      </div>
+
+      <div class="col" id="download-section" style="display:none;">
+        <div>文件名：</div>
+        <input id="filename" type="text" value="demo.glb" style="width: 100%; margin-bottom: 10px;" />
+        <button id="download-btn" class="primary">下载 3D 模型</button>
+      </div>
+    
+          
+      <div id="error" class="err" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <script>
+    // === 配置你的后端地址 ===
+    const API_BASE = 'http://127.0.0.1:5013';
+
+    // === DOM refs ===
+    const $file = document.getElementById('file');
+    const $preview = document.getElementById('preview');
+    const $thumb = document.getElementById('thumb');
+    const $steps = document.getElementById('steps');
+    const $start = document.getElementById('start');
+    const $diffusionBar = document.getElementById('diffusion-bar');
+    const $decodingBar = document.getElementById('decoding-bar');
+    const $diffusionPct = document.getElementById('diffusion-pct');
+    const $decodingPct = document.getElementById('decoding-pct');
+    // const $log = document.getElementById('log');
+    const $error = document.getElementById('error');
+
+    const $downloadSection = document.getElementById('download-section');
+    const $filename = document.getElementById('filename');
+    const $downloadBtn = document.getElementById('download-btn');
+    
+    let currentJobId = null;
+    let pollTimer = null;
+    let es = null; // EventSource
+    let diffusionProgress = 0;
+    let decodingProgress = 0;
+
+    function setProgress() {
+      $diffusionBar.style.width = diffusionProgress + '%';
+      $decodingBar.style.width = decodingProgress + '%';
+      $diffusionPct.textContent = diffusionProgress + '%';
+      $decodingPct.textContent = decodingProgress + '%';
+    }
+
+    function resetUI() {
+      setProgress();
+      $error.textContent = '';
+    }
+
+    function toBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('读取图片失败'));
+        reader.onload = () => {
+          const str = String(reader.result);
+          const idx = str.indexOf('base64,');
+          resolve(idx >= 0 ? str.slice(idx + 7) : str);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function downloadBase64(b64, filename = 'demo.glb') {
+      const byteChars = atob(b64);
+      const byteNums = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteNums[i] = byteChars.charCodeAt(i);
+      }
+      const blob = new Blob([byteNums], { type: 'model/gltf-binary' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function startJob(imageB64, steps) {
+      const res = await fetch(`${API_BASE}/shape/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ image: imageB64, num_inference_steps: Number(steps) || 10 })
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(()=>'');
+        throw new Error(`提交失败：${res.status} ${t}`);
+      }
+      const j = await res.json();
+      if (j.code !== 1) throw new Error(j.error || '未知错误');
+      return j.job_id;
+    }
+
+    function startSSE(jobId) {
+      if (!('EventSource' in window)) {
+        return false;
+      }
+      try {
+        es = new EventSource(`${API_BASE}/events/${jobId}`);
+        es.onmessage = (ev) => {
+          try {
+            const d = JSON.parse(ev.data);
+            if (d.phase === 'Diffusion Sampling:') {
+              diffusionProgress = d.progress;
+            } else if (d.phase === 'Volume Decoding') {
+              decodingProgress = d.progress;
+            }
+            setProgress();
+            // $log.textContent = d.message;
+            if (d.status === 'done' || d.status === 'error') {
+              es.close();
+            }
+          } catch {}
+        };
+        es.onerror = () => {
+          es.close();
+          es = null;
+          startPolling(jobId);
+        };
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function startPolling(jobId) {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        try {
+          const r = await fetch(`${API_BASE}/progress/${jobId}`);
+          const j = await r.json();
+          if (j.code !== 1) throw new Error(j.error || 'progress error');
+          if (j.phase === 'Diffusion Sampling:') {
+            diffusionProgress = j.progress;
+          } else if (j.phase === 'Volume Decoding') {
+            decodingProgress = j.progress;
+          }
+          setProgress();
+          if (j.status === 'done' || j.status === 'error') {
+            clearInterval(pollTimer);
+            pollTimer = null;
+          }
+        } catch (e) {
+          // 忽略偶发错误，持续轮询
+        }
+      }, 700);
+    }
+
+    async function fetchResult(jobId) {
+      try {
+        // 确保 fetch 请求不被默认行为阻止
+        const r = await fetch(`${API_BASE}/result/${jobId}`);
+        if (!r.ok) throw new Error(`获取结果失败：${r.status}`);
+        const blob = await r.blob(); // 解析为 blob 类型
+        return blob;
+      } catch (error) {
+        console.error('请求失败:', error);
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename; // 使用用户输入的文件名
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+
+    // === 事件绑定 ===
+    $file.addEventListener('change', async (e) => {
+      resetUI();
+      const f = e.target.files?.[0];
+      if (!f) { 
+        $start.disabled = true; 
+        return; 
+      }
+
+      // 显示预览图
+      const url = URL.createObjectURL(f);
+      $preview.src = url;
+      $thumb.style.display = 'flex'; // 显示图像容器
+      $start.disabled = false; // 启用开始按钮
+    });
+
+    $start.addEventListener('click', async () => {
+      try {
+        $start.disabled = true;
+        $error.textContent = '正在提交任务…';
+        const f = $file.files?.[0];
+        if (!f) throw new Error('请先选择图片');
+
+        const imgB64 = await toBase64(f);
+        currentJobId = await startJob(imgB64, $steps.value);
+        $error.textContent = '任务已提交，开始接收进度…';
+
+        // 开始进度订阅
+        const ok = startSSE(currentJobId);
+        if (!ok) startPolling(currentJobId);
+
+        // 等待结束（简单方式：轮询状态直到 done）
+          const waitDone = async () => {
+            while (true) {
+              try {
+                const r = await fetch(`${API_BASE}/progress/${currentJobId}`);
+                const j = await r.json();
+                
+                // 调试输出日志，确保返回的状态是预期的
+                console.log(`Job progress status: ${j.status}`);
+                
+                // 如果完成，跳出循环
+                if (j.status === 'done') return true;
+
+                // 如果出错，打印错误信息
+                if (j.status === 'error') {
+                  console.error('后端执行失败，错误信息:', j.error || '未知错误');
+                  throw new Error('后端执行失败，请查看日志');
+                }
+                
+                // 等待 1 秒后重试
+                await new Promise(r => setTimeout(r, 1000));
+              } catch (error) {
+                console.error('等待任务完成时出错:', error);
+                return false; // 捕获错误后避免控制台刷新
+              }
+            }
+          };
+        await waitDone();
+
+        // 拉取并下载 glb
+        $error.textContent = '生成完成';
+        $downloadSection.style.display = 'block';
+        $downloadBtn.addEventListener('click', () => downloadBlob(blob, filename));
+        const blob = await fetchResult(currentJobId);
+        const filename = $filename.value || 'demo.glb'; // 使用输入框的文件名    
+        
+        // downloadBlob(blob, 'demo.glb');
+        // $error.textContent = '已下载 demo.glb';
+
+        // // 创建 Blob 对象
+        // const dataUri = `data:application/octet-stream;base64,${b64}`;
+
+        const modelViewer = document.getElementById('model-viewer');
+        const url = URL.createObjectURL(blob);
+        modelViewer.src = url;
+        
+      } catch (err) {
+        console.error(err);
+        $error.textContent = '❌ ' + (err?.message || String(err));
+      } finally {
+        $start.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

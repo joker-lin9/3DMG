@@ -131,7 +131,7 @@ def _worker(job_id, style, subjects):
 
     for idx, subject in enumerate(subjects):
         # 通用风格 + 主体，并附加便于抠图/分离的描述
-        prompt = f"{style}, {subject}，有立体感, 背景简单，前景背景色差大, third dimension, simple background, high contrast between foreground and background"
+        prompt = f"{style}, {subject}, 全身像, 有立体感, 背景简单，前景背景色差大, third dimension, simple background, high contrast between foreground and background"
         _update_item(job_id, idx, status='PENDING', started=time.time())
         _sse_push(job_id, {'item': {'index': idx, 'status': 'PENDING', 'subject': subject}})
         try:
