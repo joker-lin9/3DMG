@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>文生图生成器</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{--bg:#0b0f14;--card:#121820;--muted:#97a3b6;--text:#e6edf3;--acc:#4da3ff;--acc2:#27d796;--danger:#ff5c7a}
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0f14,#0e141b);color:var(--text);font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    .wrap{max-width:860px;margin:32px auto;padding:0 16px}
+    .card{background:var(--card);border:1px solid #1d2530;border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    h1{margin:0 0 8px;font-size:22px}
+    p.sub{margin:0 0 16px;color:var(--muted)}
+    nav{max-width:860px;margin:16px auto 0;padding:0 16px;display:flex;gap:8px;align-items:center;justify-content:flex-end;font:14px ui-sans-serif}
+    nav a{color:#97a3b6;text-decoration:none;border:1px solid #2b3544;padding:6px 10px;border-radius:10px}
+    nav a.active{color:#0b1220;background:#4da3ff;border-color:#3288e9;font-weight:600}
+    .row{display:flex;gap:16px;flex-wrap:wrap}
+    .col{flex:1 1 320px}
+    input, textarea{width:100%;background:#101620;border:1px solid #273141;color:var(--text);padding:10px 12px;border-radius:10px}
+    .btn{padding:10px 14px;border:1px solid #2f3a4f;background:#1a2331;color:var(--text);border-radius:12px}
+    .btn.primary{background:linear-gradient(90deg,var(--acc),#6ad0ff);border-color:#3288e9;color:#0b1220;font-weight:600}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .tag{font-size:12px;padding:4px 8px;border:1px solid #2a3346;border-radius:999px;color:var(--muted)}
+    .bar{height:14px;background:#0f1722;border:1px solid #293245;border-radius:999px;overflow:hidden}
+    .bar>div{height:100%;width:0%;background:linear-gradient(90deg,var(--acc2),#58f3c8);transition:width .2s ease}
+    .item{border:1px solid #273141;border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center}
+    .thumb{width:128px;height:128px;border:1px solid #273141;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#0f1722}
+    .thumb img{max-width:100%;max-height:100%;object-fit:contain}
+    .err{color:var(--danger)}
+    /* 缩略图可点击放大 & 悬浮操作 */
+    .thumb { cursor: zoom-in; position: relative; }
+    .thumb .actions {
+    position: absolute; right: 8px; top: 8px; display: flex; gap: 8px; z-index: 2;
+    }
+    .thumb .actions .btn-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 10px;
+    background: #182230; border: 1px solid #253044; color: #e6edf3;
+    text-decoration: none; cursor: pointer; font-size: 16px;
+    }
+    .thumb .actions .btn-icon[disabled] { opacity: .5; cursor: not-allowed; }
+
+    /* 查看大图弹窗 */
+    #imgViewer { border: 1px solid #263144; border-radius: 14px; padding: 0; background: #0b0f14; max-width: 92vw; max-height: 92vh; }
+    #imgViewer::backdrop { background: rgba(0,0,0,.55); }
+    #viewerWrap { padding: 12px; display: flex; align-items: center; justify-content: center; }
+    #viewerImg { max-width: 90vw; max-height: 80vh; object-fit: contain; }
+    #viewerBar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid #263144; background: #0e141b; }
+    #viewerBar .btn { padding: 8px 12px; border: 1px solid #2f3a4f; background: #1a2331; color: #e6edf3; border-radius: 10px; }
+
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="./index.html" class="active">白模生成</a>
+    <a href="./t2i.html">文生图</a>
+  </nav>
+
+  <div class="wrap">
+    <div class="card">
+      <h1>文生图生成器</h1>
+      <p class="sub">输入绘画风格 + 多个主体对象，后端将为每个主体单独生成一张图，并实时返回进度。</p>
+
+      <div class="row">
+        <div class="col">
+          <label>绘画风格</label>
+          <input id="style" placeholder="如：卡通, 写实, 科幻..."/>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <div class="col">
+          <label>主体对象</label>
+          <div id="subjects"></div>
+          <button id="add" class="btn" style="margin-top:8px">+ 新增主体</button>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <div class="col">
+          <button id="start" class="btn primary" disabled>开始生成</button>
+          <span id="tip" class="tag" style="margin-left:8px">主体至少 1 个</span>
+        </div>
+      </div>
+
+      <div id="list" style="display:none; margin-top:16px; display:flex; flex-direction:column; gap:12px"></div>
+      <div id="error" class="err" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <script>
+    // === 配置你的后端地址 ===
+    const API_BASE = 'http://127.0.0.1:5023'; // 示例：与后端端口一致
+
+    const $style = document.getElementById('style');
+    const $subjects = document.getElementById('subjects');
+    const $add = document.getElementById('add');
+    const $start = document.getElementById('start');
+    const $list = document.getElementById('list');
+    const $error = document.getElementById('error');
+
+    function makeSubjectInput(v=''){
+        const wrap = document.createElement('div');
+        wrap.style.display = 'flex';
+        wrap.style.gap = '8px';
+        wrap.style.marginTop = '6px';
+        const inp = document.createElement('input');
+        inp.placeholder = '输入一个主体，如：红色的狐狸';
+        inp.value = v;
+        const del = document.createElement('button');
+        del.className = 'btn';
+        del.textContent = '删除';
+        del.onclick = ()=>{ wrap.remove(); checkStart(); };
+
+        wrap.appendChild(inp); 
+        wrap.appendChild(del);
+        return wrap;
+    }
+
+    function subjectsValues(){
+        return Array.from($subjects.querySelectorAll('input'))
+        .map(i=>i.value.trim())
+        .filter(Boolean);
+    }
+
+    function checkStart(){ 
+        const styleOk = $style.value.trim().length > 0;
+        // 至少一个主体输入框有值才允许开始
+        const hasValidSubject = subjectsValues().length > 0;
+        $start.disabled = !(styleOk && hasValidSubject);
+    }
+
+    // 1) 风格框：输入 + 失焦都触发校验
+    $style.addEventListener('input', checkStart);
+    $style.addEventListener('focusout', checkStart, true); // 用 focusout，能冒泡
+
+    // 2) 主体输入区：用“委托”统一监听所有动态 input
+    // 2.1 实时输入时校验
+    $subjects.addEventListener('input', (e)=>{
+        if (e.target.tagName === 'INPUT') checkStart();
+    });
+    // 2.2 从某个主体框“点到别处/失焦”时校验
+    $subjects.addEventListener('focusout', (e)=>{
+        if (e.target.tagName === 'INPUT') checkStart();
+    }, true); // focusout 会冒泡，适合委托
+
+    // 3) 点击页面其它任意区域也触发一次（兜底）
+    //    如果需要排除点击在主体容器/风格框内部的情况，可用 closest() 判断
+    document.addEventListener('click', (e)=>{
+        const insideSubjects = e.target.closest('#subjects') !== null;
+        const insideStyle = e.target === $style || $style.contains(e.target);
+        if (!insideSubjects && !insideStyle) {
+        // 用微任务/0ms 确保先完成 DOM 更新再校验
+        setTimeout(checkStart, 0);
+        }
+    });
+
+    $add.addEventListener('click', ()=>{
+        $subjects.appendChild(makeSubjectInput());
+        checkStart();
+    });
+
+    // 初始化：放一个输入框并校验一次
+    $subjects.appendChild(makeSubjectInput());
+    checkStart();
+
+    function createItemRow(idx, subject){
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.innerHTML = `
+        <div class="thumb"><img id="img-${idx}"/></div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+            <div><strong>#${idx+1}</strong> <span id="s-${idx}">${subject}</span></div>
+            <span id="st-${idx}" class="tag">等待中</span>
+          </div>
+        </div>`;
+      return row;
+    }
+// 放在 startJob() 里，SSE 初始化之前：
+    const fetched = new Set(); // 记录已成功设置 src 的 index，避免重复设置
+
+    async function fetchImageWithRetry(jobId, i, attempt = 0) {
+    // 已经成功就不要再拉了
+    if (fetched.has(i)) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/t2i/result/${jobId}/${i}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.startsWith('image/')) throw new Error(`not image: ${ct}`);
+        const b = await res.blob();
+        const url = URL.createObjectURL(b);
+        document.getElementById(`img-${i}`).src = url;
+        fetched.add(i);
+        return;
+    } catch (e) {
+        // 指数退避：最多重试 ~10 次，间隔从 300ms 增到几秒
+        if (attempt < 10) {
+        const delay = 300 * Math.pow(1.6, attempt); // 300ms, 480ms, 768ms...
+        setTimeout(() => fetchImageWithRetry(jobId, i, attempt + 1), delay);
+        } else {
+        console.warn(`取图重试失败 index=${i}:`, e);
+        }
+    }
+    }
+    async function startJob(){
+      $error.textContent='';
+      const style = $style.value.trim();
+      const subjects = subjectsValues();
+      if(!style || subjects.length===0){
+        $error.textContent = '请填写绘画风格并至少一个主体';
+        return;
+      }
+      $start.disabled = true;
+      try{
+        const res = await fetch(`${API_BASE}/t2i/`, {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({style, subjects})
+        });
+        const j = await res.json();
+        if(!res.ok || j.code!==1) throw new Error(j.error || '提交失败');
+        const jobId = j.job_id; const total = j.total;
+
+        // 渲染列表
+        $list.innerHTML = ''; $list.style.display = 'flex';
+        subjects.forEach((s, i)=>{ $list.appendChild(createItemRow(i, s)) });
+
+        // SSE
+        let es = null;
+        if ('EventSource' in window) {
+            try {
+            es = new EventSource(`${API_BASE}/t2i/events/${jobId}`);
+            es.onmessage = async (ev) => {
+            try {
+                const d = JSON.parse(ev.data);
+                if (d.item) {
+                const i = d.item.index;
+                document.getElementById(`st-${i}`).textContent = d.item.status;
+                if (d.item.status === 'SUCCEEDED' && !fetched.has(i)) {
+                    fetchImageWithRetry(jobId, i); // ✅ 改为“带退避重试”的拉图
+                }
+                }
+                if (d.overall && (d.overall.status === 'done' || d.overall.status === 'error')) {
+                es.close();
+                $start.disabled = false;
+                }
+            } catch (e) {
+                // 如果 JSON 解析失败，打印出来（方便发现 SSE 格式问题）
+                console.error('SSE 数据解析失败：', e, ev.data);
+            }
+            };
+            // es.onerror = () => { es.close(); startPollingFallback(); };
+            es.onerror = () => {
+                // SSE 出错或关闭时，也启动轮询作为备份
+                startPollingFallback();
+                es.close();
+            };
+            } catch (e) {
+            // 无法构造 EventSource（老浏览器、被拦截）时，直接启动轮询
+            startPollingFallback();
+            }
+        } else {
+            // 如果浏览器不支持 EventSource，使用轮询
+            startPollingFallback();
+        }
+
+        // —— 在这里插入 “轮询兜底” 函数声明 ——  
+        function startPollingFallback() {
+            const poll = setInterval(async () => {
+            try {
+                const r = await fetch(`${API_BASE}/t2i/progress/${jobId}`);
+                const p = await r.json();
+                if (p.code === 1) {
+                p.items.forEach((it, i) => {
+                    document.getElementById(`st-${i}`).textContent = it.status;
+                    if (it.status === 'SUCCEEDED') {
+                    const imgEl = document.getElementById(`img-${i}`);
+                    if (!imgEl.src) {
+                        fetch(`${API_BASE}/t2i/result/${jobId}/${i}`).then(r=>{
+                        if (!r.ok) throw new Error(`result ${r.status}`);
+                        const ct = r.headers.get('content-type') || '';
+                        if (!ct.startsWith('image/')) throw new Error(`not image: ${ct}`);
+                        return r.blob();
+                        }).then(b=>{
+                        document.getElementById(`img-${i}`).src = URL.createObjectURL(b);
+                        }).catch(err=>{
+                        console.error('fetch image failed', err);
+                        });
+                    }
+                    }
+                });
+                if (p.done === p.total) {
+                    clearInterval(poll);
+                    $start.disabled = false;
+                }
+                }
+            } catch (err) {
+                // 可选：如果 fetch 失败，也清除轮询或重试
+                console.error('轮询 fallback 错误', err);
+            }
+            }, 1000);  // 每秒轮询一次
+        }
+      }catch(e){
+        console.error(e);
+        $error.textContent = '❌ ' + (e.message || '提交失败');
+        $start.disabled = false;
+      }
+    }
+
+    $start.addEventListener('click', startJob);
+  </script>
+</body>
+</html>

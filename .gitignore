@@ -7,3 +7,4 @@ checkpoint
 py310
 python_standalone
 triton
+t2i_outputs
