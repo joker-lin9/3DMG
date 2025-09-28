@@ -2,4 +2,8 @@ __pycache__
 .vscode
 
 hunyuan3d-2.1
+Hunyuan3D-2.1-Windows
 checkpoint
+py310
+python_standalone
+triton

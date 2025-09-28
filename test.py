@@ -1,6 +1,6 @@
 import sys
-sys.path.insert(0, './hunyuan3d-2.1/hy3dshape')
-sys.path.insert(0, './hunyuan3d-2.1/hy3dpaint')
+sys.path.insert(0, './Hunyuan3D-2.1-Windows/hy3dshape')
+sys.path.insert(0, './Hunyuan3D-2.1-Windows/hy3dpaint')
 
 from PIL import Image
 from hy3dshape.rembg import BackgroundRemover
@@ -9,7 +9,7 @@ from textureGenPipeline import Hunyuan3DPaintPipeline, Hunyuan3DPaintConfig
 import torch
 import os
 
-###可更换参数###
+# ##可更换参数###
 # image_path = './hunyuan3d-2.1/assets/demo.png'
 # num_inference_steps = 50
 
@@ -53,9 +53,9 @@ import os
 max_num_view = 6  # can be 6 to 9
 resolution = 512  # can be 768 or 512
 conf = Hunyuan3DPaintConfig(max_num_view, resolution)
-conf.realesrgan_ckpt_path = "hy3dpaint/ckpt/RealESRGAN_x4plus.pth"
-conf.multiview_cfg_path = "hy3dpaint/cfgs/hunyuan-paint-pbr.yaml"
-conf.custom_pipeline = "hy3dpaint/hunyuanpaintpbr"
+conf.realesrgan_ckpt_path = "./Hunyuan3D-2.1-Windows/hy3dpaint/ckpt/RealESRGAN_x4plus.pth"
+conf.multiview_cfg_path = "./Hunyuan3D-2.1-Windows/hy3dpaint/cfgs/hunyuan-paint-pbr.yaml"
+conf.custom_pipeline = "./Hunyuan3D-2.1-Windows/hy3dpaint/hunyuanpaintpbr"
 paint_pipeline = Hunyuan3DPaintPipeline(conf)
 
 output_mesh_path = 'demo_textured.glb'
